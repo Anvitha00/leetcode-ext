@@ -4,7 +4,7 @@
   "version": "1.0",
   "description": "AI-powered coaching for LeetCode problems - guides you to solutions through discussion and code analysis",
   "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["*://leetcode.com/*"],
+  "host_permissions": ["*://leetcode.com/*", "*://localhost/*"],
   "content_scripts": [
     {
       "matches": ["*://leetcode.com/problems/*"],

@@ -40,6 +40,26 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/', (req, res) => {
+  res.json({
+    service: 'DSA Coach AI Backend',
+    version: '1.0.0',
+    status: 'running',
+    model: 'gemini-1.5-flash',
+    endpoints: {
+      health: '/api/health',
+      analyze: '/api/analyze (POST)',
+      test: '/api/test',
+      limits: '/api/limits'
+    },
+    usage: {
+      extension: 'Use with DSA Coach Chrome extension',
+      direct: 'POST to /api/analyze with problem data'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.post('/api/analyze', async (req, res) => {
   try {
     const { type, problem, approach, code, message, history } = req.body;

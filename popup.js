@@ -4,6 +4,7 @@ class DSACoachPopup {
         this.currentMode = 'discussion';
         this.problemData = null;
         this.conversationHistory = [];
+        this.backendUrl = 'http://localhost:3000'; // Make this configurable
         this.init();
     }
 
@@ -11,6 +12,18 @@ class DSACoachPopup {
         this.setupEventListeners();
         this.loadProblemData();
         this.loadConversationHistory();
+        this.testBackendConnection();
+    }
+
+    async testBackendConnection() {
+        try {
+            const response = await fetch(`${this.backendUrl}/api/health`);
+            const data = await response.json();
+            console.log('DSA Coach: Backend connected', data);
+        } catch (error) {
+            console.warn('DSA Coach: Backend not available, using mock responses');
+            this.backendUrl = null; // Will trigger mock mode
+        }
     }
 
     setupEventListeners() {
@@ -52,6 +65,19 @@ class DSACoachPopup {
             if (!tab.url.includes('leetcode.com/problems/')) {
                 document.getElementById('problemTitle').textContent = 'Please navigate to a LeetCode problem';
                 return;
+            }
+
+            // Inject content script if not already injected
+            try {
+                await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: ['content.js']
+                });
+                
+                // Wait a moment for the script to initialize
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (error) {
+                console.log('Content script may already be injected');
             }
 
             const response = await chrome.tabs.sendMessage(tab.id, { action: 'getProblemData' });
@@ -220,18 +246,60 @@ class DSACoachPopup {
     }
 
     async callAI(payload) {
-        // Simulate AI API call - In a real implementation, this would call your backend
-        // For demo purposes, we'll return mock responses
-        
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API delay
-        
-        if (payload.type === 'approach_analysis') {
-            return this.generateMockApproachAnalysis(payload);
-        } else if (payload.type === 'code_analysis') {
-            return this.generateMockCodeAnalysis(payload);
-        } else {
-            return this.generateMockChatResponse(payload);
+        // Try backend first, fallback to mock
+        if (this.backendUrl) {
+            try {
+                const response = await fetch(`${this.backendUrl}/api/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.warn('Backend error:', errorData);
+                    
+                    // Use fallback response if available
+                    if (errorData.fallback) {
+                        return {
+                            response: errorData.fallback,
+                            complexity: { time: 'O(?)', space: 'O(?)' }
+                        };
+                    }
+                    
+                    throw new Error(`Backend error: ${errorData.message || response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Backend response received:', data.model);
+                return data;
+                
+            } catch (error) {
+                console.warn('Backend failed, using mock:', error.message);
+                this.backendUrl = null; // Switch to mock mode
+            }
         }
+        
+        // Fallback to mock responses
+        console.log('Using mock AI responses');
+        return this.getMockResponse(payload);
+    }
+
+    getMockResponse(payload) {
+        // Simulate API delay
+        return new Promise(resolve => {
+            setTimeout(() => {
+                if (payload.type === 'approach_analysis') {
+                    resolve(this.generateMockApproachAnalysis(payload));
+                } else if (payload.type === 'code_analysis') {
+                    resolve(this.generateMockCodeAnalysis(payload));
+                } else {
+                    resolve(this.generateMockChatResponse(payload));
+                }
+            }, 1000);
+        });
     }
 
     generateMockApproachAnalysis(payload) {
@@ -344,7 +412,7 @@ Can you elaborate on the specific steps in your approach?`;
             timeComplexity = 'O(n²)';
             spaceComplexity = 'O(1)';
             
-        } else if (code.includes('{}') || code.includes('dict') || code.includes('hashmap')) {
+        } else if (code.includes('{}') || code.includes('dict') || code.includes('hashmap') || code.includes('{') || code.includes('Map')) {
             response = `Nice! I can see you're using a hash-based approach.
 
 **Code Analysis:**
@@ -532,14 +600,9 @@ Can you elaborate on the specific steps in your approach?`;
             if (result.problemUrl === this.problemData?.url && result.conversationHistory) {
                 this.conversationHistory = result.conversationHistory;
                 
-                // Restore chat messages
-                result.conversationHistory.forEach(item => {
-                    if (item.sender && item.message) {
-                        this.addChatMessage(item.message, item.sender, item.complexity);
-                    }
-                });
-                
+                // Don't re-add messages during initialization, just store them
                 if (this.conversationHistory.length > 0) {
+                    // Restore the chat interface but don't duplicate messages
                     this.showChatInput();
                     
                     // Show last complexity info if available
