@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DSA Coach AI</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <div class="logo">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 7.5V9M15 9L15 21L13 21V11L11 11V21L9 21V9C9 7.9 9.9 7 11 7H13C14.1 7 15 7.9 15 9Z"
+              fill="currentColor"
+            />
+          </svg>
+          <h1>DSA Coach AI</h1>
+        </div>
+        <div class="problem-info" id="problemInfo">
+          <span id="problemTitle">Loading problem...</span>
+        </div>
+      </div>
+
+      <!-- Mode Toggle -->
+      <div class="mode-toggle">
+        <div class="toggle-container">
+          <button class="toggle-btn active" id="discussionMode">
+            Discussion
+          </button>
+          <div class="toggle-switch" id="toggleSwitch">
+            <div class="toggle-slider"></div>
+          </div>
+          <button class="toggle-btn" id="codeMode">Code Analysis</button>
+        </div>
+      </div>
+
+      <!-- Discussion Mode -->
+      <div class="mode-content active" id="discussionContent">
+        <div class="input-section">
+          <label for="approachInput">Describe your approach:</label>
+          <textarea
+            id="approachInput"
+            placeholder="e.g., I'm thinking of using a hash map to store the numbers I've seen so far, then for each number, check if target - current number exists in the hash map..."
+            rows="4"
+          ></textarea>
+          <button id="analyzeApproach" class="primary-btn">
+            <span class="btn-text">Analyze Approach</span>
+            <div class="loading-spinner hidden"></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Code Analysis Mode -->
+      <div class="mode-content" id="codeContent">
+        <div class="input-section">
+          <label for="codeInput"
+            >Your code (or paste here if auto-detection fails):</label
+          >
+          <textarea
+            id="codeInput"
+            placeholder="def twoSum(nums, target):
+    # Your code here
+    pass"
+            rows="6"
+          ></textarea>
+          <div class="code-actions">
+            <button id="autoDetectCode" class="secondary-btn">
+              Auto-detect from LeetCode
+            </button>
+            <button id="analyzeCode" class="primary-btn">
+              <span class="btn-text">Analyze Code</span>
+              <div class="loading-spinner hidden"></div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Response Section -->
+      <div class="ai-response-section" id="aiResponseSection">
+        <div class="complexity-info hidden" id="complexityInfo">
+          <div class="complexity-item">
+            <span class="complexity-label">Time Complexity:</span>
+            <span class="complexity-value" id="timeComplexity">-</span>
+          </div>
+          <div class="complexity-item">
+            <span class="complexity-label">Space Complexity:</span>
+            <span class="complexity-value" id="spaceComplexity">-</span>
+          </div>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+          <!-- Chat messages will be dynamically added here -->
+        </div>
+
+        <div class="chat-input-section hidden" id="chatInputSection">
+          <div class="chat-input-container">
+            <textarea
+              id="chatInput"
+              placeholder="Ask questions or describe your next approach..."
+              rows="2"
+            ></textarea>
+            <button id="sendChatMessage" class="chat-send-btn">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M2 21L23 12L2 3V10L17 12L2 14V21Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <button id="clearChat" class="clear-btn">Clear Conversation</button>
+        <span class="powered-by">Powered by Gemini AI</span>
+      </div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "DSA Coach AI",
+  "version": "1.0",
+  "description": "AI-powered coaching for LeetCode problems - guides you to solutions through discussion and code analysis",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["*://leetcode.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["*://leetcode.com/problems/*"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "DSA Coach AI"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
