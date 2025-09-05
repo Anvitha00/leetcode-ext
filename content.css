@@ -4,7 +4,7 @@
     position: fixed !important;
     top: 80px !important;
     right: 20px !important;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background: linear-gradient(135deg, var(--pastel-blue, #A7C7E7) 0%, var(--pastel-purple, #D7C0E7) 100%) !important;
     color: white !important;
     padding: 12px 16px !important;
     border-radius: 25px !important;
@@ -25,7 +25,7 @@
 
 .dsa-coach-floating-button:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
+    box-shadow: 0 6px 20px rgba(167, 199, 231, 0.4) !important;
 }
 
 .dsa-coach-floating-button:active {

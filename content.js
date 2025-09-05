@@ -23,6 +23,8 @@ class LeetCodeExtractor {
     try {
       // Extract problem data immediately
       this.extractProblemData();
+      // Retry extraction when DOM updates until we have a title and description
+      this.setupProblemDataObserver();
       
       // Set up code monitoring
       this.setupCodeMonitoring();
@@ -57,6 +59,39 @@ class LeetCodeExtractor {
       
     } catch (error) {
       console.error('DSA Coach: Setup failed:', error);
+    }
+  }
+
+  setupProblemDataObserver() {
+    try {
+      if (this.problemObserver) {
+        this.problemObserver.disconnect();
+      }
+
+      const needData = () => !this.problemData || !this.problemData.title || this.problemData.title === 'Unknown Problem' || !this.problemData.description || !this.problemData.description.trim();
+
+      if (!needData()) return;
+
+      let debounceTimer = null;
+      this.problemObserver = new MutationObserver(() => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          this.extractProblemData();
+          if (!needData()) {
+            this.problemObserver.disconnect();
+            this.updateProblemInfo();
+          }
+        }, 300);
+      });
+
+      this.problemObserver.observe(document.body, { childList: true, subtree: true });
+
+      // Safety timeout to stop observing after 20s
+      setTimeout(() => {
+        try { this.problemObserver.disconnect(); } catch (_) {}
+      }, 20000);
+    } catch (e) {
+      console.warn('DSA Coach: Problem observer setup failed', e);
     }
   }
 
@@ -132,6 +167,9 @@ class LeetCodeExtractor {
         }
       });
 
+      // Fallback to document.title if DOM extraction fails
+      const fallbackTitle = (document.title || '').split('-')[0].trim();
+
       this.problemData = {
         title: titleElement ? this.sanitizeText(titleElement.textContent.trim()) : 'Unknown Problem',
         description: descriptionElement ? this.sanitizeText(descriptionElement.textContent.trim().substring(0, 500)) : '',
@@ -141,7 +179,12 @@ class LeetCodeExtractor {
         timestamp: Date.now()
       };
 
+      if ((!this.problemData.title || this.problemData.title === 'Unknown Problem') && fallbackTitle) {
+        this.problemData.title = this.sanitizeText(fallbackTitle);
+      }
+
       console.log('DSA Coach: Problem data extracted', this.problemData);
+      this.updateProblemInfo();
     } catch (error) {
       console.error('DSA Coach: Error extracting problem data:', error);
       this.problemData = {
@@ -153,6 +196,15 @@ class LeetCodeExtractor {
         timestamp: Date.now()
       };
     }
+  }
+
+  updateProblemInfo() {
+    try {
+      const info = document.querySelector('.dsa-coach-problem-info');
+      if (info && this.problemData && this.problemData.title) {
+        info.innerHTML = `<strong>Problem:</strong> ${this.sanitizeText(this.problemData.title)}`;
+      }
+    } catch (_) {}
   }
 
   setupCodeMonitoring() {
@@ -329,7 +381,7 @@ class LeetCodeExtractor {
     const header = this.createElement('div', 'dsa-coach-header');
     const title = this.createElement('h3', '', '🤖 DSA Coach AI');
     const closeBtn = this.createElement('button', 'dsa-coach-close', '×');
-    closeBtn.onclick = () => panel.style.display = 'none';
+    closeBtn.onclick = () => { try { panel.remove(); } catch (_) { panel.style.display = 'none'; } };
     header.appendChild(title);
     header.appendChild(closeBtn);
     
@@ -409,8 +461,13 @@ class LeetCodeExtractor {
     const textarea = this.createElement('textarea');
     textarea.id = inputId;
     textarea.placeholder = placeholder;
-    textarea.rows = rows;
+    textarea.rows = Math.max(rows || 3, 5);
     
+    const actions = this.createElement('div', 'dsa-coach-code-actions');
+
+    const chatBtn = this.createElement('button', 'dsa-coach-btn-secondary', 'Send Message');
+    chatBtn.onclick = () => this.sendChatMessage();
+
     const button = this.createElement('button', 'dsa-coach-btn-primary');
     const buttonSpan = this.createElement('span', '', buttonText);
     const spinner = this.createElement('div', 'dsa-coach-spinner hidden');
@@ -420,7 +477,9 @@ class LeetCodeExtractor {
     
     section.appendChild(labelEl);
     section.appendChild(textarea);
-    section.appendChild(button);
+    actions.appendChild(chatBtn);
+    actions.appendChild(button);
+    section.appendChild(actions);
     
     return section;
   }
@@ -459,29 +518,19 @@ class LeetCodeExtractor {
   createResponseArea() {
     const responseArea = this.createElement('div', 'dsa-coach-response-area');
     responseArea.id = 'dsa-response-area';
-    responseArea.style.display = 'none';
+    responseArea.style.display = 'block';
     
-    // Complexity info
-    const complexityInfo = this.createElement('div', 'dsa-coach-complexity-info');
-    complexityInfo.id = 'dsa-complexity-info';
-    complexityInfo.style.display = 'none';
-    
-    const timeComplexity = this.createElement('div', 'complexity-item');
-    timeComplexity.innerHTML = '<span>Time:</span><span id="dsa-time-complexity">O(?)</span>';
-    
-    const spaceComplexity = this.createElement('div', 'complexity-item');
-    spaceComplexity.innerHTML = '<span>Space:</span><span id="dsa-space-complexity">O(?)</span>';
-    
-    complexityInfo.appendChild(timeComplexity);
-    complexityInfo.appendChild(spaceComplexity);
+    // Complexity panel removed; we include complexity in AI messages
     
     // Chat container
     const chatContainer = this.createElement('div', 'dsa-coach-chat-container');
     chatContainer.id = 'dsa-chat-container';
+    chatContainer.style.maxHeight = '280px';
     
     // Chat input
     const chatInputSection = this.createElement('div', 'dsa-coach-chat-input');
     chatInputSection.id = 'dsa-chat-input-section';
+    // Hide separate chat input; we reuse the approach textarea + Send Message
     chatInputSection.style.display = 'none';
     
     const chatInputContainer = this.createElement('div', 'dsa-chat-input-container');
@@ -498,7 +547,6 @@ class LeetCodeExtractor {
     chatInputContainer.appendChild(sendBtn);
     chatInputSection.appendChild(chatInputContainer);
     
-    responseArea.appendChild(complexityInfo);
     responseArea.appendChild(chatContainer);
     responseArea.appendChild(chatInputSection);
     
@@ -857,23 +905,8 @@ Feel free to walk me through your logic!`,
     
     const messageDiv = this.createElement('div', `dsa-chat-message ${sender}`);
     
-    if (sender === 'ai' && complexity) {
-      const messageText = this.createElement('div', 'message-text');
-      messageText.textContent = message;
-      messageDiv.appendChild(messageText);
-      
-      if (complexity.time && complexity.time !== 'O(?)') {
-        const timeTag = this.createElement('span', 'complexity-tag', `Time: ${complexity.time}`);
-        messageDiv.appendChild(timeTag);
-      }
-      
-      if (complexity.space && complexity.space !== 'O(?)') {
-        const spaceTag = this.createElement('span', 'complexity-tag', `Space: ${complexity.space}`);
-        messageDiv.appendChild(spaceTag);
-      }
-    } else {
-      messageDiv.textContent = this.sanitizeText(message);
-    }
+    // Always render AI response text; complexity tags removed and included in text
+    messageDiv.textContent = this.sanitizeText(message);
     
     container.appendChild(messageDiv);
     container.scrollTop = container.scrollHeight;
@@ -1021,7 +1054,7 @@ Feel free to walk me through your logic!`,
         position: fixed !important;
         top: 80px !important;
         right: 20px !important;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        background: linear-gradient(135deg, var(--pastel-blue, #A7C7E7) 0%, var(--pastel-purple, #D7C0E7) 100%) !important;
         color: white !important;
         padding: 12px 16px !important;
         border-radius: 25px !important;
@@ -1051,7 +1084,7 @@ Feel free to walk me through your logic!`,
         right: 20px !important;
         width: 400px !important;
         max-height: 70vh !important;
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important;
+        background: linear-gradient(135deg, var(--pastel-blue, #A7C7E7) 0%, var(--pastel-purple, #D7C0E7) 100%) !important;
         border-radius: 12px !important;
         box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
         z-index: 999998 !important;
@@ -1156,11 +1189,11 @@ Feel free to walk me through your logic!`,
       }
 
       .dsa-coach-input-section textarea {
-        background: rgba(255,255,255,0.1) !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
+        background: rgba(255,255,255,0.92) !important;
+        border: 1px solid rgba(0,0,0,0.1) !important;
         border-radius: 6px !important;
         padding: 10px !important;
-        color: white !important;
+        color: #000000 !important;
         font-family: inherit !important;
         font-size: 14px !important;
         resize: vertical !important;
@@ -1169,7 +1202,7 @@ Feel free to walk me through your logic!`,
       }
 
       .dsa-coach-input-section textarea::placeholder {
-        color: rgba(255,255,255,0.6) !important;
+        color: rgba(0,0,0,0.5) !important;
       }
 
       .dsa-coach-input-section textarea:focus {
@@ -1195,7 +1228,7 @@ Feel free to walk me through your logic!`,
       }
 
       .dsa-coach-btn-primary {
-        background: linear-gradient(135deg, #64b5f6, #42a5f5) !important;
+        background: linear-gradient(135deg, var(--pastel-blue, #A7C7E7), var(--pastel-purple, #D7C0E7)) !important;
         color: white !important;
       }
 
@@ -1281,7 +1314,7 @@ Feel free to walk me through your logic!`,
 
       .complexity-item span:last-child {
         font-weight: 600 !important;
-        color: #64b5f6 !important;
+        color: var(--pastel-blue, #A7C7E7) !important;
       }
 
       /* Chat Container */
@@ -1304,7 +1337,7 @@ Feel free to walk me through your logic!`,
       }
 
       .dsa-chat-message.user {
-        background: rgba(100, 181, 246, 0.2) !important;
+        background: rgba(167, 199, 231, 0.25) !important;
         align-self: flex-end !important;
         border-bottom-right-radius: 4px !important;
       }
@@ -1321,7 +1354,7 @@ Feel free to walk me through your logic!`,
 
       .complexity-tag {
         display: inline-block !important;
-        background: rgba(100, 181, 246, 0.3) !important;
+        background: rgba(167, 199, 231, 0.35) !important;
         padding: 2px 6px !important;
         border-radius: 4px !important;
         font-size: 11px !important;

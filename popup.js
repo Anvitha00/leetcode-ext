@@ -12,6 +12,8 @@ class DSACoachPopup {
         this.setupEventListeners();
         this.loadProblemData();
         this.loadConversationHistory();
+        // Ensure chat is available for interaction by default
+        this.showChatInput();
         this.testBackendConnection();
     }
 
@@ -80,17 +82,28 @@ class DSACoachPopup {
                 console.log('Content script may already be injected');
             }
 
-            const response = await chrome.tabs.sendMessage(tab.id, { action: 'getProblemData' });
-            
-            if (response && response.problemData) {
-                this.problemData = response.problemData;
-                document.getElementById('problemTitle').textContent = this.problemData.title;
-                
-                // Pre-fill code input if code is detected
-                if (response.userCode && response.userCode.trim() && !response.userCode.includes('No code detected')) {
-                    document.getElementById('codeInput').value = response.userCode;
+            // Try immediately, then retry a few times while the page hydrates
+            const tryFetch = async (attempt = 1, maxAttempts = 6) => {
+                try {
+                    const resp = await chrome.tabs.sendMessage(tab.id, { action: 'getProblemData' });
+                    if (resp && resp.problemData) {
+                        this.problemData = resp.problemData;
+                        document.getElementById('problemTitle').textContent = this.problemData.title || 'Loading problem...';
+                        // Pre-fill code input if code is detected
+                        if (resp.userCode && resp.userCode.trim() && !resp.userCode.includes('No code detected')) {
+                            document.getElementById('codeInput').value = resp.userCode;
+                        }
+                        return true;
+                    }
+                } catch (_) {}
+                if (attempt < maxAttempts) {
+                    await new Promise(r => setTimeout(r, 500));
+                    return tryFetch(attempt + 1, maxAttempts);
                 }
-            }
+                return false;
+            };
+
+            await tryFetch();
         } catch (error) {
             console.error('Error loading problem data:', error);
             document.getElementById('problemTitle').textContent = 'Error loading problem data';
@@ -158,8 +171,7 @@ class DSACoachPopup {
             });
 
             this.addChatMessage(approachText, 'user');
-            this.addChatMessage(analysis.response, 'ai', analysis.complexity);
-            this.showComplexityInfo(analysis.complexity);
+            this.addChatMessage(analysis.response, 'ai');
             this.showChatInput();
             
             // Clear the approach input
@@ -197,8 +209,7 @@ class DSACoachPopup {
             });
 
             this.addChatMessage('Code analysis requested', 'user');
-            this.addChatMessage(analysis.response, 'ai', analysis.complexity);
-            this.showComplexityInfo(analysis.complexity);
+            this.addChatMessage(analysis.response, 'ai');
             this.showChatInput();
             
         } catch (error) {
@@ -233,11 +244,7 @@ class DSACoachPopup {
                 history: this.conversationHistory
             });
 
-            this.addChatMessage(response.response, 'ai', response.complexity);
-            
-            if (response.complexity) {
-                this.showComplexityInfo(response.complexity);
-            }
+            this.addChatMessage(response.response, 'ai');
             
         } catch (error) {
             console.error('Error sending chat message:', error);
@@ -505,20 +512,7 @@ Can you elaborate on the specific steps in your approach?`;
         this.saveConversationHistory();
     }
 
-    showComplexityInfo(complexity) {
-        if (!complexity || (complexity.time === 'O(?)' && complexity.space === 'O(?)')) {
-            return;
-        }
-        
-        const complexityInfo = document.getElementById('complexityInfo');
-        const timeComplexity = document.getElementById('timeComplexity');
-        const spaceComplexity = document.getElementById('spaceComplexity');
-        
-        timeComplexity.textContent = complexity.time || 'O(?)';
-        spaceComplexity.textContent = complexity.space || 'O(?)';
-        
-        complexityInfo.classList.remove('hidden');
-    }
+    // Complexity panel removed; complexities are now embedded in AI responses
 
     showChatInput() {
         document.getElementById('chatInputSection').classList.remove('hidden');

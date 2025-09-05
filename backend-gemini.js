@@ -69,74 +69,50 @@ app.post('/api/analyze', async (req, res) => {
     let prompt = '';
     
     if (type === 'approach_analysis') {
-      prompt = `You are an expert Data Structures & Algorithms coach helping a student learn problem-solving.
+      const description = problem?.description || '';
+      prompt = `You are an expert DSA coach. Analyze the user's approach for the following problem.
 
-🎯 PROBLEM: "${problem.title}"
+Problem Title:
+${problem.title}
 
-📝 STUDENT'S APPROACH: 
-"${approach}"
+Problem Description (truncated as provided by the client):
+${description}
 
-🎓 YOUR COACHING TASK:
-Analyze their approach and provide educational guidance WITHOUT giving away the solution.
+User Approach:
+${approach}
 
-Please provide:
+Output a structured, concise response WITHOUT any markdown bullets or asterisks. Use clear section headings and short paragraphs. Include:
+1) Logic Flow: Summarize the exact approach the user is following and whether the reasoning is correct.
+2) Complexity: Time and Space complexities in O-notation with a brief rationale.
+3) Edge Cases: List relevant edge cases for this specific problem and whether the approach passes each; if it fails, state precisely which scenarios fail and why.
+4) Optimization: Concrete, problem-relevant improvements to make the code more efficient (algorithmic ideas, data structures, pruning, or memory reductions). Give actionable next steps.
+5) Next Questions: 2-3 guiding questions tailored to this problem that nudge the user to think deeper without giving a full solution.
 
-📊 COMPLEXITY ANALYSIS:
-- Time Complexity: [Provide O notation]
-- Space Complexity: [Provide O notation]
-
-✅ APPROACH EVALUATION:
-- What's good about this approach?
-- What potential issues do you see?
-- Are there any edge cases they should consider?
-
-💡 GUIDING QUESTIONS (Don't give solutions!):
-Ask 2-3 thought-provoking questions that will help them:
-- Think deeper about the problem
-- Consider optimizations
-- Spot potential issues
-
-Keep it encouraging, educational, and focused on building their problem-solving skills!`;
+Be specific to the problem and the approach, avoid generic advice, and do not reveal the full solution.`;
 
     } else if (type === 'code_analysis') {
-      // Truncate very long code
       const truncatedCode = code.length > 2000 ? code.substring(0, 2000) + '\n// ... (code truncated)' : code;
+      const description = problem?.description || '';
       
-      prompt = `You are a DSA coding mentor reviewing a student's solution.
+      prompt = `You are a senior DSA mentor. Review the user's code for the given problem and produce a well-structured response with no markdown bullets or asterisks.
 
-🎯 PROBLEM: "${problem.title}"
+Problem Title:
+${problem.title}
 
-💻 STUDENT'S CODE:
-\`\`\`
+Problem Description (truncated as provided by the client):
+${description}
+
+User Code (may be truncated):
 ${truncatedCode}
-\`\`\`
 
-🎓 YOUR REVIEW TASK:
-Provide constructive code review focused on learning, not just giving answers.
+Your response must be concise and structured with these sections:
+1) Logic Flow: Describe the current logical approach the code implements. Assess correctness for this problem.
+2) Complexity: Provide Time and Space complexities in O-notation with a one-sentence justification.
+3) Edge Cases: Enumerate edge cases relevant to this problem and state whether the code currently handles each. If it fails, explain exactly how and why.
+4) Optimization: Provide concrete, problem-specific ways to make the code more efficient or clearer. Include specific data structures or algorithmic changes and a brief rationale.
+5) Next Questions: Ask 2-3 targeted questions to guide the user toward improvements without giving a complete solution.
 
-Please analyze:
-
-📊 COMPLEXITY ANALYSIS:
-- Time Complexity: [Provide O notation with brief explanation]
-- Space Complexity: [Provide O notation with brief explanation]
-
-🔍 CODE REVIEW:
-- Correctness: Does the logic look sound?
-- Edge cases: What scenarios might break this?
-- Code quality: Any style or clarity improvements?
-
-🚫 ISSUES SPOTTED:
-- Potential bugs or logical errors
-- Performance concerns
-- Missing edge case handling
-
-❓ COACHING QUESTIONS:
-Ask specific questions about their code to help them:
-- Identify issues themselves
-- Think about optimizations
-- Consider alternative approaches
-
-Remember: Guide them to discover improvements, don't just tell them what to fix!`;
+Tailor everything to the provided problem and code. Avoid generic advice and do not use bullet characters.`;
 
     } else if (type === 'chat_followup') {
       // Build conversation context
